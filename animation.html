@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rings + Direct Scrub Control</title>
+<style>
+  *{margin:0;box-sizing:border-box}
+  body{min-height:100vh;display:grid;place-items:center;background:#0e100f}
+
+  .container{
+    width:min(90vmin, 420px);
+    aspect-ratio:1;
+    display:grid;
+    place-items:center;
+    position:relative;
+  }
+
+  .c1,.c2,.c3,.c4,.c5,.c6,.c7{
+    grid-area:1 / 1;
+    display:grid; place-items:center;
+    width:100%; aspect-ratio:1;
+    border-radius:50%; overflow:hidden;
+    transform-origin:50% 50%;
+    will-change: transform;
+    backface-visibility: hidden;
+    pointer-events:none;
+  }
+  .c1 img,.c2 img,.c3 img,.c4 img,.c5 img,.c6 img,.c7 img{
+    width:100%; height:100%; display:block; object-fit:cover; user-select:none;
+  }
+
+  .c1{width:100%}
+  .c2{width:86.5%}
+  .c3{width:73%}
+  .c4{width:59.5%}
+  .c5{width:46%}
+  .c6{width:32.4%}
+  .c7{width:18.9%}
+
+  .scrubber{
+    position:absolute; right:-52px; top:50%; transform:translateY(-50%);
+    height:80%; display:flex; align-items:center;
+  }
+  .scrubber input[type="range"]{
+    writing-mode: bt-lr;              
+    -webkit-appearance: slider-vertical;  
+    width:26px; height:100%;
+    background: transparent;
+    touch-action: none;                    
+    user-select: none;
+  }
+  .scrubber input[type="range"]::-webkit-slider-runnable-track{background:#222;border-radius:8px}
+  .scrubber input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance: none; width:26px;height:26px;background:#fff;border-radius:50%;
+    border:2px solid #777; margin-top:-2px
+  }
+  .scrubber input[type="range"]::-moz-range-track{background:#222;border-radius:8px}
+  .scrubber input[type="range"]::-moz-range-thumb{
+    width:26px;height:26px;background:#fff;border-radius:50%;border:2px solid #777
+  }
+</style>
+</head>
+<body>
+  <div class="container" id="stage">
+    <div class="c1"><img src="./77.jpg" alt=""></div>
+    <div class="c2"><img src="./66.jpg" alt=""></div>
+    <div class="c3"><img src="./55.jpg" alt=""></div>
+    <div class="c4"><img src="./44.jpg" alt=""></div>
+    <div class="c5"><img src="./33.jpg" alt=""></div>
+    <div class="c6"><img src="./22.jpg" alt=""></div>
+    <div class="c7"><img src="./11.jpg" alt=""></div>
+
+    <div class="scrubber">
+      <input id="scrub" type="range" min="0" max="100" value="50" step="1" />
+    </div>
+  </div>
+
+<script>
+(() => {
+  const qs = s => document.querySelector(s);
+
+  const groupA = ['.c1','.c3','.c5','.c7'].map(qs); // 77,55,33,11
+  const groupB = ['.c2','.c4','.c6'].map(qs);       // 66,44,22
+
+  let angleA = 0, angleB = 0;
+
+  const DEG_PER_UNIT = 3.6;
+
+  const slider = document.getElementById('scrub');
+  let isDown = false, startedDrag = false, startY = 0;
+  let prevVal = Number(slider.value);
+
+  const PIXEL_THRESHOLD = 6;
+  const VALUE_THRESHOLD = 1;
+
+  function applyTransforms() {
+    const rotA = `rotate(${angleA}deg)`;
+    const rotB = `rotate(${angleB}deg)`;
+    groupA.forEach(el => el.style.transform = rotA);
+    groupB.forEach(el => el.style.transform = rotB);
+  }
+
+  slider.addEventListener('pointerdown', (e) => {
+    isDown = true; startedDrag = false;
+    startY = e.clientY;
+    prevVal = Number(slider.value);
+    slider.setPointerCapture(e.pointerId);
+  });
+
+  function handleDelta(dv) {
+    if (!startedDrag) return;
+
+    angleA += -dv * DEG_PER_UNIT;
+    angleB +=  dv * DEG_PER_UNIT;
+
+    angleA = (angleA % 360 + 360) % 360;
+    angleB = (angleB % 360 + 360) % 360;
+
+    applyTransforms();
+  }
+
+  slider.addEventListener('pointermove', (e) => {
+    if (!isDown) return;
+    const val = Number(slider.value);
+    const dv  = val - prevVal;
+    const dy  = Math.abs(e.clientY - startY);
+
+    if (!startedDrag && (dy >= PIXEL_THRESHOLD || Math.abs(dv) >= VALUE_THRESHOLD)) {
+      startedDrag = true;
+    }
+
+    handleDelta(dv);
+    prevVal = val;
+  });
+
+  slider.addEventListener('input', () => {
+    if (!isDown) return;
+    const val = Number(slider.value);
+    const dv  = val - prevVal;
+
+    if (!startedDrag && Math.abs(dv) >= VALUE_THRESHOLD) {
+      startedDrag = true;
+    }
+
+    handleDelta(dv);
+    prevVal = val;
+  });
+
+  const endDrag = (e) => {
+    if (!isDown) return;
+    isDown = false; startedDrag = false;
+    try { slider.releasePointerCapture(e.pointerId); } catch {}
+  };
+  slider.addEventListener('pointerup', endDrag);
+  slider.addEventListener('pointercancel', endDrag);
+})();
+</script>
+</body>
+</html>
